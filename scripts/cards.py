@@ -267,8 +267,8 @@ def _moves(c: Canvas, name: str, total: float, points: list[tuple[float, str]], 
 def aa_card(c: Canvas, P: dict, bx: float, by: float, bw: float, bh: float, S: float = 34) -> str:
     """The Japanese AA cat in a little rounded box with MEOW in the corner.
 
-    It blinks, kneads with its front paws, wags its tail, twitches an ear, and
-    every now and then looks happy while MEOW hops and a heart floats up.
+    It smiles (^ ^), kneads with its front paws, wags its tail, twitches an
+    ear, and every now and then MEOW hops while a heart floats up.
     """
     T = 10.0  # one loop of the face/paws/MEOW story (seconds)
     pitch = S * 1.38
@@ -325,29 +325,17 @@ def aa_card(c: Canvas, P: dict, bx: float, by: float, bw: float, bh: float, S: f
         ch, x, y = parts[part][0]
         out.append(f'<g class="{name}">{draw(ch, x, y)}</g>')
 
-    # eyes: normal / blink / happy
-    timeline = [("normal", 2.8), ("blink", .13), ("normal", .17), ("blink", .13), ("normal", 2.77),
-                ("happy", 1.6), ("normal", 2.4)]
-    exprs = list(art.AA_EYES)
-    cls = frames_css(c, "aaeye", [(exprs.index(n), d) for n, d in timeline], len(exprs))
+    # eyes: a steady smile ^ ^ in place of ﾟ and 。, both at the same height
     eyes = [parts["eye_l"][0], parts["eye_r"][0]]
-    # the drawn eyes sit at different heights (ﾟ high, 。 low); replacements share one height
     eye_cy = sum(y + (ink(ch)[1] + ink(ch)[3]) / 2 for ch, x, y in eyes) / 2
-    for k, e in enumerate(exprs):
-        c.style(f".{cls[k]}{{opacity:{1 if k == 0 else 0}}}")
-        g = []
-        for (ch0, x, y), ch in zip(eyes, art.AA_EYES[e]):
-            if k == 0:
-                g.append(draw(ch, x, y))
-                continue
-            a0, b0, a1, b1 = ink(ch0)  # centre the new eye on the old one
-            e0, f0, e1, f1 = glyph_box(ch, S * .8)
-            cx, cy = x + (a0 + a1) / 2, eye_cy
-            g.append(glyph(c, ch, cx - (e0 + e1) / 2, cy - (f0 + f1) / 2, S * .8, True, (),
-                           f'fill="{P["text"]}"'))
-        out.append(f'<g class="{cls[k]}">{"".join(g)}</g>')
+    e0, f0, e1, f1 = glyph_box(art.AA_SMILE, S * .8)
+    for ch, x, y in eyes:
+        a0, _, a1, _ = ink(ch)
+        cx = x + (a0 + a1) / 2
+        out.append(glyph(c, art.AA_SMILE, cx - (e0 + e1) / 2, eye_cy - (f0 + f1) / 2, S * .8, True, (),
+                         f'fill="{P["text"]}"'))
 
-    # happy moment: a heart floats up and MEOW hops letter by letter
+    # now and then a heart floats up and MEOW hops letter by letter
     t_happy = 6.0
     clock = Clock(c, T, "aah")
     hx, hy = ox + 3.7 * S, oy + 0.1 * pitch

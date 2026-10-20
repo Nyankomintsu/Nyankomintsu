@@ -30,8 +30,8 @@ AA_CAT = [
     (3, 4.20, ",", "hind"), (3, 4.95, ")", "rump"), (3, 5.45, "ノ", "tail"),
 ]
 AA_PREFER = {"l": ("sc_b",)}
-# what the eyes turn into for each expression
-AA_EYES = {"normal": ("ﾟ", "。"), "blink": ("-", "-"), "happy": ("^", "^")}
+# the eyes ﾟ and 。 are drawn as a smile instead
+AA_SMILE = "^"
 
 
 # ------------------------------------------------------------ small sitting cat
