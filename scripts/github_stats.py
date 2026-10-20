@@ -106,16 +106,21 @@ def fetch(login: str, exclude: list[str]) -> dict:
     skip = {e.lower() for e in exclude}
     langs: Counter = Counter()
     stars = 0
+    per_repo = []
     for repo in u["own"]["nodes"]:
         stars += repo["stargazerCount"]
-        print(f"  repo {repo['name']}: {repo['stargazerCount']} stars")
+        per_repo.append(f"{repo['name']} ★{repo['stargazerCount']}")
         if repo["name"].lower() in skip:
             continue
         for e in repo["languages"]["edges"]:
             langs[e["node"]["name"]] += e["size"]
 
-    print(f"  {u['all']['totalCount']} public repos, {stars} stars, "
-          f"{cc['contributionCalendar']['totalContributions']} contributions in the last year")
+    summary = (f"{u['all']['totalCount']} public repos ({', '.join(per_repo)}), "
+               f"{cc['contributionCalendar']['totalContributions']} contributions in the last year, "
+               f"streak {current} (best {best})")
+    print("  " + summary)
+    if os.environ.get("GITHUB_ACTIONS"):  # also shown on the workflow run page
+        print(f"::notice title=Profile stats::{summary}")
     return {
         "days": (now.date() - created.date()).days,
         "repos": u["all"]["totalCount"],
