@@ -19,7 +19,7 @@
   <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/Nyankomintsu/Nyankomintsu/main/assets/badge-uq-dark.svg">
   <img alt="UQ · Australia" src="https://raw.githubusercontent.com/Nyankomintsu/Nyankomintsu/main/assets/badge-uq-light.svg" height="28">
 </picture></a>&nbsp;
-<img alt="profile views" src="https://komarev.com/ghpvc/?username=Nyankomintsu&label=views&color=ea76cb&style=flat-square" height="28">
+<img alt="visitors" src="https://visitor-badge.laobi.icu/badge?page_id=Nyankomintsu.Nyankomintsu&left_text=visitors&left_color=%23585b70&right_color=%23ea76cb" height="28">
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/Nyankomintsu/Nyankomintsu/main/profile/neofetch-dark.svg">

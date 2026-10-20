@@ -12,37 +12,26 @@ def mirror(rows: list[tuple[str, str]]) -> list[str]:
 
 
 # ---------------------------------------------------------------- neofetch cat
-# Outline only; eyes, nose, mouth, blush and whiskers are separate layers so
-# the face can change expression without redrawing the head.
-FACE = mirror([
-    ("      ,-.       ", " "),
-    ("     /   \\      ", " "),
-    ("    /     `-----", "-"),
-    ("   |            ", " "),
-    ("   |            ", " "),
-    ("   |            ", " "),
-    ("   |            ", " "),
-    ("    \\           ", " "),
-    ("     `-._       ", " "),
-    ("         `------", "-"),
-])
-FACE[0] = FACE[0][:17] + FACE[0][17:].replace(".-,", ",-.")
-FACE_W = len(FACE[0])  # 33
-_C = FACE_W // 2  # centre column (16)
-_EYE_L, _EYE_R = 9, FACE_W - 1 - 9
-
-FACE_WHISKERS = [(5, 1, "=="), (6, 1, "=="), (5, FACE_W - 3, "=="), (6, FACE_W - 3, "==")]
-
-
-def face_features(expr: str) -> list[tuple[int, int, str, str]]:
-    """(row, col, text, colour) for one expression."""
-    eye = {"normal": "o", "blink": "-", "happy": "^", "meow": "o", "wink": "o"}[expr]
-    feats = [(4, _EYE_L, eye, "text"), (4, _EYE_R, "-" if expr == "wink" else eye, "text")]
-    feats.append((5, _C, "v", "pink"))
-    feats.append((6, _C, "o" if expr == "meow" else "ω", "pink"))
-    if expr in ("happy", "wink"):
-        feats += [(5, _EYE_L - 1, "///", "red"), (5, _EYE_R - 1, "///", "red")]
-    return feats
+# The classic Japanese AA cat:
+#
+#      ／l、
+#    （ﾟ､ 。７
+#      l、 ~ヽ
+#      じしf_, )ノ
+#
+# It was drawn for proportional fonts, so every character gets its own position
+# (row, x in em). "l" comes from the CJK font, which draws it as a straight line.
+AA_CAT = [
+    (0, 1.00, "／", "ear"), (0, 2.02, "l", "ear"), (0, 2.30, "、", "ear_tip"),
+    (1, 0.00, "(", "face"), (1, 0.55, "ﾟ", "eye_l"), (1, 1.05, "､", "nose"), (1, 1.75, "。", "eye_r"),
+    (1, 2.62, "7", "face"),
+    (2, 1.25, "l", "leg"), (2, 1.52, "、", "leg"), (2, 2.75, "~", "back"), (2, 3.35, "ヽ", "back"),
+    (3, 1.10, "じ", "paw_l"), (3, 2.05, "し", "paw_r"), (3, 3.20, "f", "hind"), (3, 3.70, "_", "hind"),
+    (3, 4.20, ",", "hind"), (3, 4.95, ")", "rump"), (3, 5.45, "ノ", "tail"),
+]
+AA_PREFER = {"l": ("sc_b",)}
+# what the eyes turn into for each expression
+AA_EYES = {"normal": ("ﾟ", "。"), "blink": ("-", "-"), "happy": ("^", "^")}
 
 
 # ------------------------------------------------------------ small sitting cat

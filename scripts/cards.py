@@ -6,7 +6,7 @@ from datetime import date
 
 import ascii_art as art
 from svgkit import Canvas, frames_css
-from term import Term, cells, parse, plain, resolve
+from term import Term, cells, glyph, glyph_box, parse, plain, resolve
 from themes import gradient, mix
 
 W = 840  # every card is 840 px wide; GitHub scales it to the column width
@@ -153,18 +153,19 @@ def header(cfg: dict, P: dict) -> str:
     c.define(grad, f'<linearGradient id="{grad}" gradientUnits="userSpaceOnUse" x1="{bt.x:.0f}" x2="{bx1:.0f}" '
                    f'y1="0" y2="0">' + "".join(f'<stop offset="{i / (len(stops) - 1):.2f}" stop-color="{s}"/>'
                                               for i, s in enumerate(stops)) + "</linearGradient>")
-    shade, blocks = [], []
+    shade, runs = [], []
     for r, line in enumerate(rows):
         # the shadow lines (╔═╗║╚╝) get a dimmed colour per column
         for col, ch in enumerate(line):
             if ch not in " █":
                 shade.append(bt.text(col, r, ch, mix(gradient(stops, col / (bw - 1)), P["base"], 0.5)))
-        # the solid blocks are drawn as rectangles filled with one smooth gradient
-        masked = "".join(ch if ch == "█" else " " for ch in line)
-        blocks += [u for u, _ in bt.chars(0, r, masked)]
-    c.add("".join(shade), f'<g fill="url(#{grad})">{"".join(blocks)}</g>')
+        runs += bt.block_runs(0, r, line)
+    # every solid block goes into ONE path with one smooth gradient, so no hairline
+    # seams show between rows at any zoom level
+    d = "".join(f"M{x:.2f},{y:.2f}h{w:.2f}v{h + .05:.2f}h{-w:.2f}Z" for x, y, w, h in runs)
+    c.add("".join(shade), f'<path d="{d}" fill="url(#{grad})"/>')
     clip = c.uid("bclip")
-    c.define(clip, f'<clipPath id="{clip}">{"".join(blocks)}</clipPath>')
+    c.define(clip, f'<clipPath id="{clip}"><path d="{d}"/></clipPath>')
     shine = c.uid("shine")
     c.define(
         shine,
@@ -255,59 +256,138 @@ def header(cfg: dict, P: dict) -> str:
 
 # ----------------------------------------------------------------- neofetch
 
+def _moves(c: Canvas, name: str, total: float, points: list[tuple[float, str]], timing: str = "ease-in-out",
+           static: str = "none") -> str:
+    """A looping transform animation from (seconds, transform) points."""
+    kf = "".join(f"{t / total * 100:.3f}%{{transform:{v}}}" for t, v in points)
+    c.style(f"@keyframes {name}{{{kf}}}.{name}{{transform:{static};animation:{name} {total:.2f}s {timing} infinite}}")
+    return name
+
+
+def aa_card(c: Canvas, P: dict, bx: float, by: float, bw: float, bh: float, S: float = 34) -> str:
+    """The Japanese AA cat in a little rounded box with MEOW in the corner.
+
+    It blinks, kneads with its front paws, wags its tail, twitches an ear, and
+    every now and then looks happy while MEOW hops and a heart floats up.
+    """
+    T = 10.0  # one loop of the face/paws/MEOW story (seconds)
+    pitch = S * 1.38
+    ink = lambda ch: glyph_box(ch, S, True, art.AA_PREFER.get(ch, ()))  # noqa: E731
+
+    # centre the drawing in the box (leave a little room for MEOW at the top)
+    xs, ys = [], []
+    for row, xe, ch, _ in art.AA_CAT:
+        x0, y0, x1, y1 = ink(ch)
+        xs += [xe * S + x0, xe * S + x1]
+        ys += [row * pitch + y0, row * pitch + y1]
+    ox = bx + (bw - (max(xs) - min(xs))) / 2 - min(xs)
+    oy = by + 12 + (bh - 12 - (max(ys) - min(ys))) / 2 - min(ys)
+
+    def draw(ch, x, y, color="text", attrs=""):
+        a = f'fill="{P.get(color, color)}"' + (f" {attrs}" if attrs else "")
+        return glyph(c, ch, x, y, S, True, art.AA_PREFER.get(ch, ()), a)
+
+    out = [f'<rect x="{bx:g}" y="{by:g}" width="{bw:g}" height="{bh:g}" rx="16" fill="{P["mantle"]}" '
+           f'stroke="{P["surface0"]}"/>']
+    parts: dict[str, list] = {}
+    for row, xe, ch, part in art.AA_CAT:
+        parts.setdefault(part, []).append((ch, ox + xe * S, oy + row * pitch))
+    for part in ("ear", "face", "leg", "back", "hind", "rump"):
+        out += [draw(ch, x, y) for ch, x, y in parts[part]]
+    out += [draw(ch, x, y, "pink") for ch, x, y in parts["nose"]]
+
+    # ear tip twitches now and then
+    ch, x, y = parts["ear_tip"][0]
+    x0, y0, _, _ = ink(ch)
+    px, py = x + x0, y + y0
+    tw = _moves(c, "eartw", T, [(0, "rotate(0)"), (8.5, "rotate(0)"), (8.62, "rotate(-18deg)"),
+                                (8.76, "rotate(8deg)"), (8.9, "rotate(0)"), (T, "rotate(0)")])
+    out.append(f'<g transform="translate({px:.1f} {py:.1f})"><g class="{tw}"><g transform="translate({-px:.1f} {-py:.1f})">'
+               f'{draw(ch, x, y)}</g></g></g>')
+
+    # tail wags all the time
+    ch, x, y = parts["tail"][0]
+    x0, _, _, y1 = ink(ch)
+    px, py = x + x0 + 2, y + y1 - 2
+    c.style("@keyframes wag{0%,100%{transform:rotate(4deg)}50%{transform:rotate(-16deg)}}"
+            ".wag{animation:wag 2.2s ease-in-out infinite}")
+    out.append(f'<g transform="translate({px:.1f} {py:.1f})"><g class="wag"><g transform="translate({-px:.1f} {-py:.1f})">'
+               f'{draw(ch, x, y)}</g></g></g>')
+
+    # front paws knead ("making biscuits") for a couple of seconds
+    for side, part in enumerate(("paw_l", "paw_r")):
+        pts = [(0, "translateY(0)"), (3.6, "translateY(0)")]
+        for k in range(4):
+            t0 = 3.6 + k * 0.48 + side * 0.24
+            pts += [(t0, "translateY(0)"), (t0 + 0.12, "translateY(-4px)"), (t0 + 0.24, "translateY(0)")]
+        pts.append((T, "translateY(0)"))
+        name = _moves(c, f"knead{side}", T, sorted(set(pts), key=lambda p: p[0]))
+        ch, x, y = parts[part][0]
+        out.append(f'<g class="{name}">{draw(ch, x, y)}</g>')
+
+    # eyes: normal / blink / happy
+    timeline = [("normal", 2.8), ("blink", .13), ("normal", .17), ("blink", .13), ("normal", 2.77),
+                ("happy", 1.6), ("normal", 2.4)]
+    exprs = list(art.AA_EYES)
+    cls = frames_css(c, "aaeye", [(exprs.index(n), d) for n, d in timeline], len(exprs))
+    eyes = [parts["eye_l"][0], parts["eye_r"][0]]
+    # the drawn eyes sit at different heights (ﾟ high, 。 low); replacements share one height
+    eye_cy = sum(y + (ink(ch)[1] + ink(ch)[3]) / 2 for ch, x, y in eyes) / 2
+    for k, e in enumerate(exprs):
+        c.style(f".{cls[k]}{{opacity:{1 if k == 0 else 0}}}")
+        g = []
+        for (ch0, x, y), ch in zip(eyes, art.AA_EYES[e]):
+            if k == 0:
+                g.append(draw(ch, x, y))
+                continue
+            a0, b0, a1, b1 = ink(ch0)  # centre the new eye on the old one
+            e0, f0, e1, f1 = glyph_box(ch, S * .8)
+            cx, cy = x + (a0 + a1) / 2, eye_cy
+            g.append(glyph(c, ch, cx - (e0 + e1) / 2, cy - (f0 + f1) / 2, S * .8, True, (),
+                           f'fill="{P["text"]}"'))
+        out.append(f'<g class="{cls[k]}">{"".join(g)}</g>')
+
+    # happy moment: a heart floats up and MEOW hops letter by letter
+    t_happy = 6.0
+    clock = Clock(c, T, "aah")
+    hx, hy = ox + 3.7 * S, oy + 0.1 * pitch
+    fl = _moves(c, "aafloat", T, [(0, "translateY(6px)"), (t_happy, "translateY(6px)"),
+                                  (t_happy + 1.6, "translateY(-16px)"), (T, "translateY(-16px)")], "linear")
+    out.append(f'<g class="{clock.show(t_happy, t_happy + 1.6)}"><g class="{fl}">'
+               f'{glyph(c, "♡", hx, hy, S * .62, True, (), "fill=" + chr(34) + P["red"] + chr(34))}</g></g>')
+    word, ms = "MEOW", 13.5
+    mx = bx + bw - 16 - len(word) * (ms * 0.6 + 1)
+    for i, ch in enumerate(word):
+        t0 = t_happy + i * 0.1
+        hop = _moves(c, f"meow{i}", T, [(0, "translateY(0)"), (t0, "translateY(0)"), (t0 + .12, "translateY(-5px)"),
+                                        (t0 + .3, "translateY(0)"), (T, "translateY(0)")])
+        out.append(f'<g class="{hop}">{glyph(c, ch, mx + i * (ms * 0.6 + 1), by + 24, ms, True, (), "fill=" + chr(34) + P["pink"] + chr(34))}</g>')
+    return "".join(out)
+
+
+INFO_COL = 39  # where the info column starts, in cells
+
+
 def neofetch(cfg: dict, P: dict, stats: dict) -> str:
     info = info_lines(cfg, stats)
     size, lh = 14, 1.45
-    rows_needed = 2 + max(len(info), len(art.FACE) + 1)
-    H = MARGIN * 2 + TITLE_H + 16 + rows_needed * size * lh + 20
+    rows_needed = 2 + len(info) + 1
+    H = MARGIN * 2 + TITLE_H + 16 + rows_needed * size * lh + 12
     c = Canvas(W, H)
     ox, oy = window(c, P, H, "neofetch")
     t = Term(c, P, ox, oy, size=size, lh=lh)
     c.add(t.markup(0, 0, prompt(cfg) + "neofetch")[0])
 
-    # the cat, vertically centred next to the info column
-    fx, fy = 1, 2 + max(0.6, (len(info) - len(art.FACE)) / 2)
-    stops = [P["pink"], P["mauve"], P["lavender"]]
-    for r, line in enumerate(art.FACE):
-        color = gradient(stops, r / (len(art.FACE) - 1))
-        c.add(t.text(fx, fy + r, line, color, bold=True))
-    for r, col, s in art.FACE_WHISKERS:
-        c.add(t.text(fx + col, fy + r, s, "overlay2", bold=True))
-    exprs = ["normal", "blink", "happy", "meow", "wink"]
-    timeline = [("normal", 2.8), ("blink", .13), ("normal", .16), ("blink", .13), ("normal", 2.6),
-                ("happy", 1.6), ("normal", 2.2), ("meow", 1.3), ("normal", 2.4), ("wink", 0.9)]
-    total = sum(d for _, d in timeline)
-    cls = frames_css(c, "face", [(exprs.index(n), d) for n, d in timeline], len(exprs))
-    for k, e in enumerate(exprs):
-        c.style(f".{cls[k]}{{opacity:{1 if k == 0 else 0}}}")
-        parts = "".join(t.text(fx + col, fy + r, s, color, bold=True) for r, col, s, color in art.face_features(e))
-        c.add(f'<g class="{cls[k]}">{parts}</g>')
-    # a heart floats up while it's happy, "にゃ～" while it meows
-    t_happy = sum(d for _, d in timeline[:5])
-    t_meow = sum(d for _, d in timeline[:7])
-    clock = Clock(c, total, "fx")
-    heart = t.text(fx + art.FACE_W - 3, fy + 1, "♡", "red", bold=True)
-    a, b = t_happy / total * 100, (t_happy + 1.6) / total * 100
-    c.style(
-        f"@keyframes floaty{{0%,{a:.2f}%{{transform:translateY(8px)}}{b:.2f}%,100%{{transform:translateY(-12px)}}}}"
-        f".floaty{{animation:floaty {total:.2f}s linear infinite}}"
-    )
-    c.add(f'<g class="{clock.show(t_happy, t_happy + 1.6)}"><g class="floaty">{heart}</g></g>')
-    c.add(f'<g class="{clock.show(t_meow, t_meow + 1.3)}">'
-          f'{t.markup(fx + art.FACE_W - 1, fy + 7, "[pink b]にゃ～[/]")[0]}</g>')
-    # twinkling stars around the head
-    c.style(".tw{animation:tw 2.6s ease-in-out infinite}@keyframes tw{0%,100%{opacity:.15}50%{opacity:1}}", key="tw")
-    for (r, col, ch, color, d) in [(0, 0, "+", "yellow", 0), (2, 31, "*", "pink", .9), (8, -1, "·", "teal", 1.7),
-                                   (-0.6, 24, "·", "mauve", .4), (10, 30, "+", "teal", 1.2)]:
-        c.add(f'<g class="tw" style="animation-delay:{d}s">{t.text(fx + col, fy + r, ch, color, bold=True)}</g>')
+    # the AA cat card, vertically centred next to the info column
+    bw, bh = 292, 236
+    mid = (t.row_y(2) + t.row_y(2 + len(info))) / 2
+    c.add(aa_card(c, P, ox, mid - bh / 2, bw, bh))
 
-    # info column
-    ix = fx + art.FACE_W + 5
     for r, m in enumerate(info):
         if isinstance(m, str):
-            c.add(t.markup(ix, 2 + r, m)[0])
+            c.add(t.markup(INFO_COL, 2 + r, m)[0])
         else:  # callable drawing something special (bars, palette)
-            c.add(m(t, ix, 2 + r))
+            c.add(m(t, INFO_COL, 2 + r))
     return c.svg("neofetch: about Nyankomint and GitHub stats")
 
 

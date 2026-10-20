@@ -91,9 +91,9 @@ def font(key: str) -> Font:
 _WARNED: set[str] = set()
 
 
-def resolve(ch: str, bold: bool = False):
+def resolve(ch: str, bold: bool = False, prefer: tuple = ()):
     """Pick the font for a character and how many cells it takes."""
-    for k in CHAINS[bold]:
+    for k in (*prefer, *CHAINS[bold]):
         f = font(k)
         if f.has(ch):
             g = f.cmap[ord(ch)]
@@ -104,6 +104,36 @@ def resolve(ch: str, bold: bool = False):
         _WARNED.add(ch)
         print(f"  warning: no font has {ch!r} (U+{ord(ch):04X}), drawing □ instead")
     return resolve("□", bold)
+
+
+def _gid(f: Font, g: str, size: float) -> str:
+    return f"{f.key}{int(size * 10)}-{re.sub(r'[^A-Za-z0-9_-]', '_', g)}"
+
+
+def glyph(c: Canvas, ch: str, x: float, y: float, size: float, bold: bool = True, prefer: tuple = (),
+          attrs: str = "") -> str:
+    """One character with the left edge of its advance at x and its baseline at y."""
+    f, g, adv, n = resolve(ch, bold, prefer)
+    gid = _gid(f, g, size)
+    if gid not in c.defs:
+        c.define(gid, f'<path id="{gid}" d="{f.path(g, size)}"/>')
+    a = f" {attrs}" if attrs else ""
+    return f'<use href="#{gid}" x="{_num(x)}" y="{_num(y)}"{a}/>'
+
+
+def glyph_box(ch: str, size: float, bold: bool = True, prefer: tuple = ()) -> tuple[float, float, float, float]:
+    """Ink bounds (x0, y0, x1, y1) in px, relative to the glyph origin, y pointing down."""
+    from fontTools.pens.boundsPen import BoundsPen
+    f, g, adv, n = resolve(ch, bold, prefer)
+    pen = BoundsPen(f.gs)
+    f.gs[g].draw(pen)
+    k = size / f.upm
+    x0, y0, x1, y1 = pen.bounds or (0, 0, 0, 0)
+    return x0 * k, -y1 * k, x1 * k, -y0 * k
+
+
+def advance(ch: str, size: float, bold: bool = True, prefer: tuple = ()) -> float:
+    return resolve(ch, bold, prefer)[2] * size
 
 
 def cells(s: str) -> int:
@@ -163,7 +193,7 @@ class Term:
         return self.row_y(row) + (self.lh - (ASC + DESC) * self.size) / 2 + ASC * self.size
 
     def _glyph(self, f: Font, g: str) -> str:
-        gid = f"{f.key}{int(self.size * 10)}-{re.sub(r'[^A-Za-z0-9_-]', '_', g)}"
+        gid = _gid(f, g, self.size)
         if gid not in self.c.defs:
             self.c.define(gid, f'<path id="{gid}" d="{f.path(g, self.size)}"/>')
         return gid
@@ -199,6 +229,21 @@ class Term:
             kc = f' class="{k}"' if k else ""
             yield f'<use href="#{gid}" x="{_num(x)}" y="{_num(y)}"{kc}/>', n
             cx += n
+
+    def block_runs(self, col: float, row: float, s: str) -> list[tuple[float, float, float, float]]:
+        """(x, y, w, h) of every run of █ in s."""
+        out, i = [], 0
+        while i < len(s):
+            if s[i] != "█":
+                i += 1
+                continue
+            j = i
+            while j < len(s) and s[j] == "█":
+                j += 1
+            top = self.baseline(row) - ASC * self.size
+            out.append((self.col_x(col + i), top, (j - i) * self.cw, (ASC + DESC) * self.size))
+            i = j
+        return out
 
     def text(self, col: float, row: float, s: str, color: str = "text", bold: bool = False, cls=None,
              start: int = 0, attrs: str = "") -> str:
