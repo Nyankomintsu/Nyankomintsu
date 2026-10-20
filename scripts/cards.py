@@ -338,7 +338,8 @@ def info_lines(cfg: dict, s: dict) -> list:
         k("streak") + num(s["streak"]) + f" day{'s' if s['streak'] != 1 else ''}"
         + f" [overlay1](best {s['best_streak']})[/]",
     ]
-    langs = s["languages"][:4]
+    total_size = sum(v for _, v in s["languages"]) or 1
+    langs = [(n, v) for n, v in s["languages"] if v / total_size >= 0.01][:4]  # hide slivers under 1%
     accents = ["pink", "mauve", "blue", "teal", "peach", "yellow"]
     if langs:
         def bar(t: Term, col: float, row: float, langs=langs):

@@ -108,11 +108,14 @@ def fetch(login: str, exclude: list[str]) -> dict:
     stars = 0
     for repo in u["own"]["nodes"]:
         stars += repo["stargazerCount"]
+        print(f"  repo {repo['name']}: {repo['stargazerCount']} stars")
         if repo["name"].lower() in skip:
             continue
         for e in repo["languages"]["edges"]:
             langs[e["node"]["name"]] += e["size"]
 
+    print(f"  {u['all']['totalCount']} public repos, {stars} stars, "
+          f"{cc['contributionCalendar']['totalContributions']} contributions in the last year")
     return {
         "days": (now.date() - created.date()).days,
         "repos": u["all"]["totalCount"],
