@@ -1,0 +1,5 @@
+# Pictures are drawn by scripts/generate.py
+assets/*.svg linguist-generated=true
+profile/*.svg linguist-generated=true
+# The generator should not count towards my language stats
+scripts/** linguist-vendored=true

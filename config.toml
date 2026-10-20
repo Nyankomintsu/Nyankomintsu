@@ -1,0 +1,85 @@
+# ───────────────────────────────────────────────────────────────────────
+#  Nyankomint 主页的设置
+#
+#  改完这个文件并提交后，GitHub Actions 会自动重新生成 assets/ 和
+#  profile/ 里的所有图片（大约 1 分钟）。数据卡片每天也会自动更新。
+#
+#  上色写法：[pink]粉色字[/]   [pink b]粉色粗体[/]   要显示 [ 本身就写 [[
+#  可用颜色（Catppuccin）：rosewater flamingo pink mauve red maroon peach
+#    yellow green teal sky sapphire blue lavender text subtext0 subtext1
+#    overlay0 overlay1 overlay2
+# ───────────────────────────────────────────────────────────────────────
+
+[profile]
+github = "Nyankomintsu"   # GitHub 用户名，用来读取统计数据
+user = "nyankomint"       # 终端提示符里显示的名字
+banner = "NYANKOMINT"     # 顶部的大字（只能用英文字母和数字）
+
+# ── 顶部终端 ───────────────────────────────────────────────────────────
+[header]
+title = "nyankomint@github: ~ — zsh"
+alt = "Nyankomint terminal banner"
+last_login = "Last login: {date} on ttys000"
+subtitle = "[subtext0]にゃんこ[/] [overlay1](nyanko)[/] [overlay1]+[/] [teal]mint[/] [overlay1]=[/] [pink b]Nyankomint[/]   [overlay1]ฅ(^･ω･^ฅ)[/]"
+
+# 下面几条命令会轮流「打字」出来，output 是命令的输出（可以写多行）
+[[header.commands]]
+cmd = 'echo "Hi♡~ 欢迎来到我的 GitHub！"'
+output = ["Hi♡~ 欢迎来到我的 GitHub！"]
+
+[[header.commands]]
+cmd = "python3 -c \"print('にゃーん' * 3)\""
+output = ["にゃーんにゃーんにゃーん"]
+
+[[header.commands]]
+cmd = "sudo apt install mint-tea"
+output = ["[green]✓[/] mint-tea is already the newest version [overlay1](=^･ω･^=)[/]"]
+
+[[header.commands]]
+cmd = 'git commit -m "今日もがんばる"'
+output = ["[[main [yellow]7a3f2c1[/]] 今日もがんばる", " 1 file changed, 1 insertion(+)"]
+
+# ── neofetch 卡片（GitHub 数据部分是自动的，这里只写固定的介绍）─────────
+[neofetch]
+about = [
+  ["name", "Nyankomint [overlay1]·[/] にゃんこミント"],
+  ["campus", "UQ [overlay1]·[/] Australia"],
+  ["stack", "Python [overlay1]·[/] C/C++ [overlay1]·[/] Web"],
+  ["bilibili", "[pink]真寻Mahiro[/]"],
+]
+# 统计语言占比时跳过的仓库（主页仓库自己的生成脚本不算）
+exclude_repos = ["Nyankomintsu"]
+
+# ── 技能（ls 出来的「文件」，第二项是颜色）──────────────────────────────
+[skills]
+files = [
+  ["main.py", "yellow"],
+  ["hello.c", "sapphire"],
+  ["vector.cpp", "blue"],
+  ["index.html", "peach"],
+  ["style.css", "mauve"],
+  ["app.ts", "teal"],
+]
+
+# ── 结尾 ───────────────────────────────────────────────────────────────
+[footer]
+title = "logout"
+alt = "またね～ See you next time!"
+lines = [
+  "[pink b]またね～[/]  See you next time!",
+  "Thanks for stopping by [overlay1]ฅ(^･ω･^ฅ)[/]",
+  "[overlay0]# updated {date} · drawn by python3 with ♡[/]",
+]
+
+# ── 徽章 ───────────────────────────────────────────────────────────────
+[[badges]]
+name = "bilibili"
+label = "bilibili"
+value = "真寻Mahiro"
+color = "pink"
+
+[[badges]]
+name = "uq"
+label = "UQ"
+value = "Australia"
+color = "mauve"
